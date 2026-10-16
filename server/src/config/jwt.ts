@@ -13,3 +13,15 @@ export const signAccessToken = (userId: number): string => {
     algorithm: "HS256",
   });
 };
+
+export const verifyAccessToken = (token: string) => {
+  const payload = jwt.verify(token, jwtSecret, {
+    algorithms: ["HS256"],
+  });
+
+  if (typeof payload === "string" || typeof payload.sub !== "string") {
+    throw new Error("Invalid token payload");
+  }
+
+  return payload.sub;
+};
