@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerSchema } from "../validators/auth.schema.js";
+import { registerSchema, loginSchema } from "../validators/auth.schema.js";
 import { prisma } from "../config/prisma.js";
 import bcrypt from "bcrypt";
 import { Prisma } from "../generated/prisma/client.js";
@@ -68,4 +68,19 @@ authRouter.post("/register", async (req, res) => {
       error: "Internal server error",
     });
   }
+});
+
+authRouter.post("/login", (req, res) => {
+  const result = loginSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      error: "Validation failed",
+      details: result.error.flatten(),
+    });
+  }
+
+  return res.status(501).json({
+    message: "Login validation passed. Authenticatin is not implemented yet.",
+  });
 });
