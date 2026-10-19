@@ -24,8 +24,13 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  privateUser1Id Int?
+  privateUser2Id Int?
+
   participants ConversationParticipant[]
   messages     Message[]
+
+  @@unique([privateUser1Id, privateUser2Id])
 }
 
 model ConversationParticipant {

@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 
 import { prisma } from "../config/prisma.js";
 import { createConversationSchema } from "../validators/conversation.schema.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 export const conversationRouter = Router();
 
@@ -21,6 +22,9 @@ conversationRouter.post("/", async (req, res) => {
   const { participantId } = result.data;
 
   const currentUserId = Number(res.locals.userId);
+
+  const privateUser1Id = Math.min(currentUserId, participantId);
+  const privateUser2Id = Math.max(currentUserId, participantId);
 
   if (participantId === currentUserId) {
     return res.status(400).json({
@@ -45,24 +49,54 @@ conversationRouter.post("/", async (req, res) => {
     });
   }
 
-  const conversation = await prisma.conversation.create({
-    data: {
-      participants: {
-        create: [{ userId: currentUserId }, { userId: participantId }],
-      },
-    },
-    include: {
-      participants: {
-        select: {
-          userId: true,
-          joinedAt: true,
+  try {
+    const conversation = await prisma.conversation.create({
+      data: {
+        privateUser1Id,
+        privateUser2Id,
+        participants: {
+          create: [{ userId: currentUserId }, { userId: participantId }],
         },
       },
-    },
-  });
+      include: {
+        participants: {
+          select: {
+            userId: true,
+            joinedAt: true,
+          },
+        },
+      },
+    });
 
-  return res.status(201).json({
-    message: "Conversation created successfully",
-    conversation,
-  });
+    return res.status(201).json({
+      message: "Conversation created successfully",
+      conversation,
+    });
+  } catch (error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existingConversation = await prisma.conversation.findUnique({
+        where: {
+          privateUser1Id_privateUser2Id: {
+            privateUser1Id,
+            privateUser2Id,
+          },
+        },
+        include: {
+          participants: true,
+        },
+      });
+
+      if (existingConversation) {
+        return res.status(200).json({
+          message: "Conversation already exists",
+          conversation: existingConversation,
+        });
+      }
+    }
+
+    throw error;
+  }
 });
