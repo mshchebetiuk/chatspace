@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import { Prisma } from "../generated/prisma/client.js";
 import { signAccessToken } from "../config/jwt.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { loginRateLimit } from "../middlewares/login-rate-limit.middleware.js";
 
 export const authRouter = Router();
 
@@ -72,7 +73,7 @@ authRouter.post("/register", async (req, res) => {
   }
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", loginRateLimit, async (req, res) => {
   const result = loginSchema.safeParse(req.body);
 
   if (!result.success) {
