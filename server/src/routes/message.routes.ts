@@ -82,3 +82,54 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
     data: message,
   });
 });
+
+messageRouter.get<{ id: string }>("/", async (req, res) => {
+  const conversationId = Number(req.params.id);
+
+  const currentUserId = Number(res.locals.userId);
+
+  const membership = await prisma.conversationParticipant.findUnique({
+    where: {
+      userId_conversationId: {
+        userId: currentUserId,
+        conversationId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!membership) {
+    return res.status(403).json({
+      error: "You are not a participant of this conversation",
+    });
+  }
+
+  if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
+    return res.status(400).json({
+      error: "Invalid conversation ID",
+    });
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      conversationId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    select: {
+      id: true,
+      content: true,
+      senderId: true,
+      conversationId: true,
+      createdAt: true,
+    },
+  });
+
+  return res.status(200).json({
+    message: "Messages fetched successfully",
+    data: messages,
+  });
+});
