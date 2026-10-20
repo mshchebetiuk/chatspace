@@ -4,7 +4,7 @@ import { prisma } from "../config/prisma.js";
 import bcrypt from "bcrypt";
 import { Prisma } from "../generated/prisma/client.js";
 import { signAccessToken } from "../config/jwt.js";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import { requireAuth } from "../middlewares/auth.middleware.js";
 import { loginRateLimit } from "../middlewares/login-rate-limit.middleware.js";
 
 export const authRouter = Router();

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import { requireAuth } from "../middlewares/auth.middleware.js";
+import { messageRouter } from "./message.routes.js";
 
 import { prisma } from "../config/prisma.js";
 import { createConversationSchema } from "../validators/conversation.schema.js";
@@ -8,6 +9,7 @@ import { Prisma } from "../generated/prisma/client.js";
 export const conversationRouter = Router();
 
 conversationRouter.use(requireAuth);
+conversationRouter.use("/:id/messages", messageRouter);
 
 conversationRouter.post("/", async (req, res) => {
   const result = createConversationSchema.safeParse(req.body);
