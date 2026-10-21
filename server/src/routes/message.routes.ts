@@ -62,19 +62,32 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
     });
   }
 
-  const message = await prisma.message.create({
-    data: {
-      content,
-      senderId: currentUserId,
-      conversationId,
-    },
-    select: {
-      id: true,
-      content: true,
-      senderId: true,
-      conversationId: true,
-      createdAt: true,
-    },
+  const message = await prisma.$transaction(async (tx) => {
+    const newMessage = await tx.message.create({
+      data: {
+        content,
+        senderId: currentUserId,
+        conversationId,
+      },
+      select: {
+        id: true,
+        content: true,
+        senderId: true,
+        conversationId: true,
+        createdAt: true,
+      },
+    });
+
+    await tx.conversation.update({
+      where: {
+        id: conversationId,
+      },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+
+    return newMessage;
   });
 
   return res.status(201).json({
