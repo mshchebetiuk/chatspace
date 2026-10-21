@@ -11,6 +11,65 @@ export const conversationRouter = Router();
 conversationRouter.use(requireAuth);
 conversationRouter.use("/:id/messages", messageRouter);
 
+conversationRouter.get("/", async (req, res) => {
+  const currentUserId = Number(res.locals.userId);
+
+  const conversations = await prisma.conversation.findMany({
+    where: {
+      participants: {
+        some: {
+          userId: currentUserId,
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      participants: {
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      messages: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+        select: {
+          id: true,
+          content: true,
+          senderId: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  const formattedConversations = conversations.map((conversation) => {
+    const { messages, ...rest } = conversation;
+
+    return {
+      ...rest,
+      lastMessage: messages[0] ?? null,
+    };
+  });
+
+  return res.status(200).json({
+    message: "Conversations fetched successfully",
+    data: formattedConversations,
+  });
+});
+
 conversationRouter.post("/", async (req, res) => {
   const result = createConversationSchema.safeParse(req.body);
 
