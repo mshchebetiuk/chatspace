@@ -112,10 +112,29 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     });
   }
 
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 20);
+
+  if (
+    !Number.isSafeInteger(page) ||
+    page < 1 ||
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > 100
+  ) {
+    return res.status(400).json({
+      error: "Invalid pagination parameters",
+    });
+  }
+
+  const skip = (page - 1) * limit;
+
   const messages = await prisma.message.findMany({
     where: {
       conversationId,
     },
+    skip,
+    take: limit,
     orderBy: {
       createdAt: "asc",
     },
@@ -128,8 +147,22 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     },
   });
 
+  const total = await prisma.message.count({
+    where: {
+      conversationId,
+    },
+  });
+
+  const totalPages = Math.ceil(total / limit);
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
+
   return res.status(200).json({
     message: "Messages fetched successfully",
     data: messages,
+    total,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
   });
 });
