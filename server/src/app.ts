@@ -3,6 +3,7 @@ import cors from "cors";
 
 import { authRouter } from "./routes/auth.routes.js";
 import { conversationRouter } from "./routes/conversation.routes.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
 
 export const app = express();
 
@@ -17,3 +18,5 @@ app.get("/health", (_req, res) => {
     service: "chatspace-api",
   });
 });
+
+app.use(errorHandler);
