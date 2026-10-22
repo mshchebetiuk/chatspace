@@ -19,16 +19,27 @@ type LoginData = {
   };
 };
 
+type RegisterData = {
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    createdAt: Date;
+  };
+};
+
 export const authRouter = Router();
 
 authRouter.post("/register", async (req, res) => {
   const result = registerSchema.safeParse(req.body);
 
   if (!result.success) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Validation failed",
-      details: result.error.flatten(),
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const { email } = result.data;
@@ -39,9 +50,12 @@ authRouter.post("/register", async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(409).json({
+      const response: ApiResponse<never> = {
+        success: false,
         error: "Email already registered",
-      });
+      };
+
+      return res.status(409).json(response);
     }
 
     const { name } = result.data;
@@ -63,25 +77,36 @@ authRouter.post("/register", async (req, res) => {
       },
     });
 
-    return res.status(201).json({
+    const response: ApiResponse<RegisterData> = {
+      success: true,
       message: "User registered successfully",
-      user,
-    });
+      data: {
+        user,
+      },
+    };
+
+    return res.status(201).json(response);
   } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return res.status(409).json({
+      const response: ApiResponse<never> = {
+        success: false,
         error: "Email already registered",
-      });
+      };
+
+      return res.status(409).json(response);
     }
 
     console.error("Registration error:", error);
 
-    return res.status(500).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Internal server error",
-    });
+    };
+
+    return res.status(500).json(response);
   }
 });
 
