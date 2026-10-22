@@ -6,6 +6,7 @@ import { Prisma } from "../generated/prisma/client.js";
 import { signAccessToken } from "../config/jwt.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { loginRateLimit } from "../middlewares/login-rate-limit.middleware.js";
+import type { ApiResponse } from "../types/api.types.js";
 
 export const authRouter = Router();
 
@@ -129,11 +130,16 @@ authRouter.post("/login", loginRateLimit, async (req, res) => {
   }
 });
 
-authRouter.get("/me", requireAuth, (req, res) => {
+authRouter.get("/me", requireAuth, (_req, res) => {
   const userId = res.locals.userId as string;
 
-  return res.status(200).json({
+  const response: ApiResponse<{ userId: string }> = {
+    success: true,
+    data: {
+      userId,
+    },
     message: "Authenticated successfully",
-    userId,
-  });
+  };
+
+  return res.status(200).json(response);
 });
