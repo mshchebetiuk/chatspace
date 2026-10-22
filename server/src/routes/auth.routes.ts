@@ -8,6 +8,17 @@ import { requireAuth } from "../middlewares/auth.middleware.js";
 import { loginRateLimit } from "../middlewares/login-rate-limit.middleware.js";
 import type { ApiResponse } from "../types/api.types.js";
 
+type LoginData = {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+};
+
 export const authRouter = Router();
 
 authRouter.post("/register", async (req, res) => {
@@ -78,10 +89,12 @@ authRouter.post("/login", loginRateLimit, async (req, res) => {
   const result = loginSchema.safeParse(req.body);
 
   if (!result.success) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Validation failed",
-      details: result.error.flatten(),
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const { email } = result.data;
@@ -92,9 +105,12 @@ authRouter.post("/login", loginRateLimit, async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({
+      const response: ApiResponse<never> = {
+        success: false,
         error: "Invalid email or password",
-      });
+      };
+
+      return res.status(401).json(response);
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -103,30 +119,41 @@ authRouter.post("/login", loginRateLimit, async (req, res) => {
     );
 
     if (!isPasswordValid) {
-      return res.status(401).json({
+      const response: ApiResponse<never> = {
+        success: false,
         error: "Invalid email or password",
-      });
+      };
+
+      return res.status(401).json(response);
     }
 
     const accessToken = signAccessToken(user.id);
 
-    return res.status(200).json({
-      message: "Login successful",
-      accessToken,
-      tokenType: "Bearer",
-      expiresIn: 900,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
+    const response: ApiResponse<LoginData> = {
+      success: true,
+      data: {
+        accessToken,
+        tokenType: "Bearer",
+        expiresIn: 900,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
       },
-    });
+      message: "Login successful",
+    };
+
+    return res.status(200).json(response);
   } catch (error: unknown) {
     console.error("Login error:", error);
 
-    return res.status(500).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Internal server error",
-    });
+    };
+
+    return res.status(500).json(response);
   }
 });
 
