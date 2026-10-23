@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { createMessageSchema } from "../validators/message.schema.js";
 import { prisma } from "../config/prisma.js";
+import type { ApiResponse } from "../types/api.types.js";
 
 export const messageRouter = Router({
   mergeParams: true,
@@ -13,10 +14,12 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
   const result = createMessageSchema.safeParse(req.body);
 
   if (!result.success) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Validation failed",
-      details: result.error.flatten(),
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const { content } = result.data;
@@ -25,9 +28,12 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
   const conversationId = Number(rawConversationId);
 
   if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Invalid conversation ID",
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const conversation = await prisma.conversation.findUnique({
@@ -40,9 +46,12 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
   });
 
   if (!conversation) {
-    return res.status(404).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Conversation not found",
-    });
+    };
+
+    return res.status(404).json(response);
   }
 
   const currentUserId = Number(res.locals.userId);
@@ -57,9 +66,12 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
   });
 
   if (!membership) {
-    return res.status(403).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "You are not a participant of this conversation",
-    });
+    };
+
+    return res.status(403).json(response);
   }
 
   const message = await prisma.$transaction(async (tx) => {
@@ -90,16 +102,29 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
     return newMessage;
   });
 
-  return res.status(201).json({
+  type CreateMessageData = typeof message;
+
+  const response: ApiResponse<CreateMessageData> = {
+    success: true,
     message: "Message created successfully",
     data: message,
-  });
+  };
+
+  return res.status(201).json(response);
 });
 
 messageRouter.get<{ id: string }>("/", async (req, res) => {
   const conversationId = Number(req.params.id);
-
   const currentUserId = Number(res.locals.userId);
+
+  if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Invalid conversation ID",
+    };
+
+    return res.status(400).json(response);
+  }
 
   const membership = await prisma.conversationParticipant.findUnique({
     where: {
@@ -114,15 +139,12 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
   });
 
   if (!membership) {
-    return res.status(403).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "You are not a participant of this conversation",
-    });
-  }
+    };
 
-  if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
-    return res.status(400).json({
-      error: "Invalid conversation ID",
-    });
+    return res.status(403).json(response);
   }
 
   const page = Number(req.query.page ?? 1);
@@ -135,9 +157,12 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     limit < 1 ||
     limit > 100
   ) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Invalid pagination parameters",
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const skip = (page - 1) * limit;
@@ -170,12 +195,25 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
   const hasNextPage = page < totalPages;
   const hasPreviousPage = page > 1;
 
-  return res.status(200).json({
+  type MessageListData = {
+    messages: typeof messages;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+
+  const response: ApiResponse<MessageListData> = {
+    success: true,
     message: "Messages fetched successfully",
-    data: messages,
-    total,
-    totalPages,
-    hasNextPage,
-    hasPreviousPage,
-  });
+    data: {
+      messages: messages,
+      total: total,
+      totalPages: totalPages,
+      hasNextPage: hasNextPage,
+      hasPreviousPage: hasPreviousPage,
+    },
+  };
+
+  return res.status(200).json(response);
 });
