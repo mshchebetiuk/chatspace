@@ -5,6 +5,7 @@ import { messageRouter } from "./message.routes.js";
 import { prisma } from "../config/prisma.js";
 import { createConversationSchema } from "../validators/conversation.schema.js";
 import { Prisma } from "../generated/prisma/client.js";
+import type { ApiResponse } from "../types/api.types.js";
 
 export const conversationRouter = Router();
 
@@ -64,20 +65,27 @@ conversationRouter.get("/", async (req, res) => {
     };
   });
 
-  return res.status(200).json({
+  type ConversationListData = typeof formattedConversations;
+
+  const response: ApiResponse<ConversationListData> = {
+    success: true,
     message: "Conversations fetched successfully",
     data: formattedConversations,
-  });
+  };
+
+  return res.status(200).json(response);
 });
 
 conversationRouter.post("/", async (req, res) => {
   const result = createConversationSchema.safeParse(req.body);
 
   if (!result.success) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Validation failed",
-      details: result.error.flatten(),
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const { participantId } = result.data;
@@ -88,9 +96,12 @@ conversationRouter.post("/", async (req, res) => {
   const privateUser2Id = Math.max(currentUserId, participantId);
 
   if (participantId === currentUserId) {
-    return res.status(400).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "You cannot create a conversation with yourself",
-    });
+    };
+
+    return res.status(400).json(response);
   }
 
   const participant = await prisma.user.findUnique({
@@ -105,9 +116,12 @@ conversationRouter.post("/", async (req, res) => {
   });
 
   if (!participant) {
-    return res.status(404).json({
+    const response: ApiResponse<never> = {
+      success: false,
       error: "Participant not found",
-    });
+    };
+
+    return res.status(404).json(response);
   }
 
   try {
@@ -129,10 +143,19 @@ conversationRouter.post("/", async (req, res) => {
       },
     });
 
-    return res.status(201).json({
+    type CreateConversationData = {
+      conversation: typeof conversation;
+    };
+
+    const response: ApiResponse<CreateConversationData> = {
+      success: true,
       message: "Conversation created successfully",
-      conversation,
-    });
+      data: {
+        conversation,
+      },
+    };
+
+    return res.status(201).json(response);
   } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -151,10 +174,19 @@ conversationRouter.post("/", async (req, res) => {
       });
 
       if (existingConversation) {
-        return res.status(200).json({
+        type ExistingConversationData = {
+          conversation: typeof existingConversation;
+        };
+
+        const response: ApiResponse<ExistingConversationData> = {
+          success: true,
           message: "Conversation already exists",
-          conversation: existingConversation,
-        });
+          data: {
+            conversation: existingConversation,
+          },
+        };
+
+        return res.status(200).json(response);
       }
     }
 
