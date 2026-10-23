@@ -1,4 +1,4 @@
-import express, { response } from "express";
+import express from "express";
 import cors from "cors";
 
 import { authRouter } from "./routes/auth.routes.js";
@@ -30,12 +30,12 @@ app.get("/health", (_req, res) => {
 });
 
 app.use((_req, res) => {
-  const resposne: ApiResponse<never> = {
+  const response: ApiResponse<never> = {
     success: false,
     error: "Route not found",
   };
 
-  res.status(404).json(resposne);
+  res.status(404).json(response);
 });
 
 app.use(errorHandler);

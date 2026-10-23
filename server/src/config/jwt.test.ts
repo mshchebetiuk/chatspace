@@ -1,13 +1,15 @@
+import { describe, it, expect } from "vitest";
 import { signAccessToken, verifyAccessToken } from "./jwt.js";
 
-const token = signAccessToken(1);
-const userId = verifyAccessToken(token);
+describe("JWT utilities", () => {
+  it("should sign and verify an access token", () => {
+    const token = signAccessToken(1);
+    const userId = verifyAccessToken(token);
 
-console.log("JWT verification:", userId === "1" ? "PASSED" : "FAILED");
+    expect(userId).toBe("1");
+  });
 
-try {
-  verifyAccessToken("invalid.token.value");
-  console.log("Invalid token rejection: FAILED");
-} catch {
-  console.log("Invalid token rejection: PASSED");
-}
+  it("should reject an invalid access token", () => {
+    expect(() => verifyAccessToken("invalid")).toThrow();
+  });
+});
