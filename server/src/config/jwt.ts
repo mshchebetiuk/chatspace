@@ -19,7 +19,11 @@ export const verifyAccessToken = (token: string) => {
     algorithms: ["HS256"],
   });
 
-  if (typeof payload === "string" || typeof payload.sub !== "string") {
+  if (
+    typeof payload === "string" ||
+    typeof payload.sub !== "string" ||
+    typeof payload.exp !== "number"
+  ) {
     throw new Error("Invalid token payload");
   }
 
