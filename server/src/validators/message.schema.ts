@@ -7,3 +7,7 @@ export const createMessageSchema = z.object({
     .min(1, "Message cannot be empty")
     .max(2000, "Message is too long"),
 });
+
+export const updateMessageSchema = createMessageSchema.pick({
+  content: true,
+});

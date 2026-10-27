@@ -574,6 +574,7 @@ describe("GET /conversations/7/messages should return message data", () => {
           senderId: 1,
           conversationId: 7,
           createdAt,
+          updatedAt: createdAt,
         },
       ]);
 

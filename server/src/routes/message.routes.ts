@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { createMessageSchema } from "../validators/message.schema.js";
+import {
+  createMessageSchema,
+  updateMessageSchema,
+} from "../validators/message.schema.js";
 import { prisma } from "../config/prisma.js";
 import type { ApiResponse } from "../types/api.types.js";
 
@@ -209,3 +212,106 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
 
   return res.status(200).json(response);
 });
+
+messageRouter.patch<{ id: string; messageId: string }>(
+  "/:messageId",
+  async (req, res) => {
+    const result = updateMessageSchema.safeParse(req.body);
+
+    if (!result.success) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Validation failed",
+      };
+
+      return res.status(400).json(response);
+    }
+
+    const conversationId = Number(req.params.id);
+    const messageId = Number(req.params.messageId);
+
+    if (
+      !Number.isSafeInteger(conversationId) ||
+      !Number.isSafeInteger(messageId) ||
+      messageId <= 0 ||
+      conversationId <= 0
+    ) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Invalid conversation or message ID",
+      };
+
+      return res.status(400).json(response);
+    }
+
+    const currentUserId = Number(res.locals.userId);
+
+    const membership = await prisma.conversationParticipant.findUnique({
+      where: {
+        userId_conversationId: {
+          userId: currentUserId,
+          conversationId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!membership) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Conversation not found",
+      };
+
+      return res.status(404).json(response);
+    }
+
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        conversationId,
+        senderId: currentUserId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!message) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Message not found",
+      };
+
+      return res.status(404).json(response);
+    }
+
+    const updatedMessage = await prisma.message.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        content: result.data.content,
+      },
+      select: {
+        id: true,
+        content: true,
+        senderId: true,
+        conversationId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    type UpdateMessageData = typeof updatedMessage;
+
+    const response: ApiResponse<UpdateMessageData> = {
+      success: true,
+      message: "Message updated successfully",
+      data: updatedMessage,
+    };
+
+    return res.status(200).json(response);
+  },
+);
