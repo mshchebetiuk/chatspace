@@ -40,7 +40,7 @@ describe("GET /conversations/7/messages", () => {
 });
 
 describe("GET /conversations/7/messages authenticated non-participant", () => {
-  it("should return HTTP 403", async () => {
+  it("should return HTTP 404", async () => {
     const membershipSpy = vi
       .spyOn(prisma.conversationParticipant, "findUnique")
       .mockResolvedValueOnce(null);
@@ -55,11 +55,9 @@ describe("GET /conversations/7/messages authenticated non-participant", () => {
       // console.log("STATUS:", response.status);
       // console.log("BODY:", response.body);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe(
-        "You are not a participant of this conversation",
-      );
+      expect(response.body.error).toBe("Conversation not found");
     } finally {
       membershipSpy.mockRestore();
     }
@@ -364,7 +362,7 @@ describe("GET /conversations/abc/messages should not query membership", () => {
 });
 
 describe("GET /conversations/7/messages should check membership once", () => {
-  it("should return HTTP 403", async () => {
+  it("should return HTTP 404", async () => {
     const membershipSpy = vi
       .spyOn(prisma.conversationParticipant, "findUnique")
       .mockResolvedValueOnce(null);
@@ -376,11 +374,9 @@ describe("GET /conversations/7/messages should check membership once", () => {
         .get("/conversations/7/messages")
         .set("Authorization", `Bearer ${token}`);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe(
-        "You are not a participant of this conversation",
-      );
+      expect(response.body.error).toBe("Conversation not found");
       expect(membershipSpy).toHaveBeenCalledTimes(1);
       expect(membershipSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -399,7 +395,7 @@ describe("GET /conversations/7/messages should check membership once", () => {
 });
 
 describe("GET /conversations/7/messages should not fetch messages for non-participant", () => {
-  it("should return HTTP 403", async () => {
+  it("should return HTTP 404", async () => {
     const membershipSpy = vi
       .spyOn(prisma.conversationParticipant, "findUnique")
       .mockResolvedValueOnce(null);
@@ -413,11 +409,9 @@ describe("GET /conversations/7/messages should not fetch messages for non-partic
         .get("/conversations/7/messages")
         .set("Authorization", `Bearer ${token}`);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe(
-        "You are not a participant of this conversation",
-      );
+      expect(response.body.error).toBe("Conversation not found");
       expect(messagesSpy).not.toHaveBeenCalled();
     } finally {
       membershipSpy.mockRestore();
@@ -459,7 +453,7 @@ describe("GET /conversations/7/messages should use correct pagination param", ()
           where: { conversationId: 7 },
           skip: 20,
           take: 10,
-          orderBy: { createdAt: "asc" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         }),
       );
       expect(response.body.data.total).toBe(25);

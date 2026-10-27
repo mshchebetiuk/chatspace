@@ -42,9 +42,7 @@ conversationRouter.get("/", async (req, res) => {
         },
       },
       messages: {
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 1,
         select: {
           id: true,

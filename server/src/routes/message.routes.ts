@@ -36,24 +36,6 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
     return res.status(400).json(response);
   }
 
-  const conversation = await prisma.conversation.findUnique({
-    where: {
-      id: conversationId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!conversation) {
-    const response: ApiResponse<never> = {
-      success: false,
-      error: "Conversation not found",
-    };
-
-    return res.status(404).json(response);
-  }
-
   const currentUserId = Number(res.locals.userId);
 
   const membership = await prisma.conversationParticipant.findUnique({
@@ -63,15 +45,18 @@ messageRouter.post<{ id: string }>("/", async (req, res) => {
         conversationId,
       },
     },
+    select: {
+      id: true,
+    },
   });
 
   if (!membership) {
     const response: ApiResponse<never> = {
       success: false,
-      error: "You are not a participant of this conversation",
+      error: "Conversation not found",
     };
 
-    return res.status(403).json(response);
+    return res.status(404).json(response);
   }
 
   const message = await prisma.$transaction(async (tx) => {
@@ -141,10 +126,10 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
   if (!membership) {
     const response: ApiResponse<never> = {
       success: false,
-      error: "You are not a participant of this conversation",
+      error: "Conversation not found",
     };
 
-    return res.status(403).json(response);
+    return res.status(404).json(response);
   }
 
   const page = Number(req.query.page ?? 1);
@@ -167,15 +152,22 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
 
   const skip = (page - 1) * limit;
 
+  if (!Number.isSafeInteger(skip) || skip > 2_147_483_647) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Invalid pagination parameters",
+    };
+
+    return res.status(400).json(response);
+  }
+
   const messages = await prisma.message.findMany({
     where: {
       conversationId,
     },
     skip,
     take: limit,
-    orderBy: {
-      createdAt: "asc",
-    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: {
       id: true,
       content: true,
