@@ -833,3 +833,112 @@ describe("DELETE /conversations/7/messages/invalid", () => {
     expect(response.body.error).toBe("Invalid conversation or message ID");
   });
 });
+
+describe("GET /conversations authenticated user", () => {
+  it("should return HTTP 200 with conversations", async () => {
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual([]);
+    } finally {
+      conversationSpy.mockRestore();
+    }
+  });
+
+  it("should return the latest message as lastMessage", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const lastMessage = {
+      id: 3,
+      content: "Hello ChatSpace!",
+      senderId: 1,
+      createdAt,
+    };
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+
+      participants: [],
+      messages: [lastMessage],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].lastMessage.content).toEqual(
+        "Hello ChatSpace!",
+      );
+    } finally {
+      conversationSpy.mockRestore();
+    }
+  });
+
+  it("should return null when conversation has no messages", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data[0].lastMessage).toBeNull();
+      expect(conversationSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { updatedAt: "desc" },
+        }),
+      );
+    } finally {
+      conversationSpy.mockRestore();
+    }
+  });
+
+  it("should return HTTP 401 without JWT", async () => {
+    const response = await request(app).get("/conversations");
+
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Authentication required");
+  });
+});
