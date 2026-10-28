@@ -724,3 +724,112 @@ describe("PATCH /conversations/7/messages/3 with empty content", () => {
     expect(response.body.error).toBe("Validation failed");
   });
 });
+
+describe("DELETE /conversations/7/messages/3", () => {
+  it("should delete own message and return HTTP 200", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const createdAt = new Date("2026-10-27T10:00:00.000Z");
+
+    const messageSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce({
+        id: 3,
+        content: "Original message",
+        senderId: 1,
+        conversationId: 7,
+        createdAt,
+        updatedAt: createdAt,
+      });
+
+    const deleteSpy = vi.spyOn(prisma.message, "delete").mockResolvedValueOnce({
+      id: 3,
+      content: "Original message",
+      senderId: 1,
+      conversationId: 7,
+      createdAt,
+      updatedAt: new Date("2026-10-27T11:00:00.000Z"),
+    });
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .delete("/conversations/7/messages/3")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("Message deleted successfully");
+      expect(response.body.data.id).toBe(3);
+      expect(deleteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 3,
+          },
+        }),
+      );
+    } finally {
+      membershipSpy.mockRestore();
+      messageSpy.mockRestore();
+      deleteSpy.mockRestore();
+    }
+  });
+});
+
+describe("DELETE /conversations/7/messages/3 by non-author", () => {
+  it("should return HTTP 404", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const messageSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce(null);
+
+    const deleteSpy = vi.spyOn(prisma.message, "delete");
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .delete("/conversations/7/messages/3")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Message not found");
+      expect(deleteSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      messageSpy.mockRestore();
+      deleteSpy.mockRestore();
+    }
+  });
+});
+
+describe("DELETE /conversations/7/messages/invalid", () => {
+  it("should return HTTP 400 for invalid message ID", async () => {
+    const token = signAccessToken(1);
+
+    const response = await request(app)
+      .delete("/conversations/7/messages/invalid")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Invalid conversation or message ID");
+  });
+});
