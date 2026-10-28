@@ -602,3 +602,125 @@ describe("GET /conversations/7/messages should return message data", () => {
     }
   });
 });
+
+describe("PATCH /conversations/7/messages/3", () => {
+  it("should update own message and return HTTP 200", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const createdAt = new Date("2026-10-27T10:00:00.000Z");
+
+    const messagesSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce({
+        id: 3,
+        content: "Original message",
+        senderId: 1,
+        conversationId: 7,
+        createdAt,
+        updatedAt: createdAt,
+      });
+
+    const updatedSpy = vi
+      .spyOn(prisma.message, "update")
+      .mockResolvedValueOnce({
+        id: 3,
+        content: "Updated message",
+        senderId: 1,
+        conversationId: 7,
+        createdAt,
+        updatedAt: new Date("2026-10-27T11:00:00.000Z"),
+      });
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .patch("/conversations/7/messages/3")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "Updated message" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.content).toBe("Updated message");
+      expect(messagesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 3,
+            conversationId: 7,
+            senderId: 1,
+          },
+        }),
+      );
+
+      expect(updatedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 3 },
+          data: { content: "Updated message" },
+        }),
+      );
+    } finally {
+      membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
+      updatedSpy.mockRestore();
+    }
+  });
+});
+
+describe("PATCH /conversations/7/messages/3 by non-author", () => {
+  it("should return HTTP 404", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const messageSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce(null);
+
+    const updateSpy = vi.spyOn(prisma.message, "update");
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .patch("/conversations/7/messages/3")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "Updated message" });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Message not found");
+      expect(updateSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      messageSpy.mockRestore();
+      updateSpy.mockRestore();
+    }
+  });
+});
+
+describe("PATCH /conversations/7/messages/3 with empty content", () => {
+  it("should return HTTP 400", async () => {
+    const token = signAccessToken(1);
+
+    const response = await request(app)
+      .patch("/conversations/7/messages/3")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ content: "" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Validation failed");
+  });
+});
