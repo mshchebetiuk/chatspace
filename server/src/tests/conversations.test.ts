@@ -1147,3 +1147,191 @@ describe("GET /conversations authenticated user", () => {
     }
   });
 });
+
+describe("PATCH /conversations/:conversationId/read", () => {
+  it("returns 404 when user is not a conversation participant", async () => {
+    const participantSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce(null);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .patch("/conversations/7/read")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe("Conversation not found");
+    } finally {
+      participantSpy.mockRestore();
+    }
+  });
+
+  it("returns 200 when conversation is marked as read", async () => {
+    const participant = {
+      id: 1,
+      userId: 1,
+      conversationId: 7,
+      joinedAt: new Date("2026-10-28T10:00:00.000Z"),
+      lastReadAt: null,
+    };
+
+    const updatedParticipant = {
+      ...participant,
+      lastReadAt: new Date("2026-10-29T18:00:00.000Z"),
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce(participant);
+
+    const updatedParticipantSpy = vi
+      .spyOn(prisma.conversationParticipant, "update")
+      .mockResolvedValueOnce(updatedParticipant);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .patch("/conversations/7/read")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("Conversation marked as read");
+      expect(response.body.data).toBeNull();
+      expect(updatedParticipantSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_conversationId: {
+              userId: 1,
+              conversationId: 7,
+            },
+          },
+          data: {
+            lastReadAt: expect.any(Date),
+          },
+        }),
+      );
+    } finally {
+      conversationSpy.mockRestore();
+      updatedParticipantSpy.mockRestore();
+    }
+  });
+
+  // it("returns 400 for invalid conversation ID", async () => {
+  //   const token = signAccessToken(1);
+
+  //   const response = await request(app)
+  //     .patch("/conversations/abc/read")
+  //     .set("Authorization", `Bearer ${token}`);
+
+  //   expect(response.status).toBe(400);
+  //   expect(response.body.success).toBe(false);
+  //   expect(response.body.error).toBe("Invalid conversation ID");
+  // });
+
+  // it("returns 400 when conversation ID is zero", async () => {
+  //   const token = signAccessToken(1);
+
+  //   const response = await request(app)
+  //     .patch("/conversations/0/read")
+  //     .set("Authorization", `Bearer ${token}`);
+
+  //   expect(response.status).toBe(400);
+  //   expect(response.body.success).toBe(false);
+  //   expect(response.body.error).toBe("Invalid conversation ID");
+  // });
+
+  // it("returns 400 when conversation ID is -1", async () => {
+  //   const token = signAccessToken(1);
+
+  //   const response = await request(app)
+  //     .patch("/conversations/-1/read")
+  //     .set("Authorization", `Bearer ${token}`);
+
+  //   expect(response.status).toBe(400);
+  //   expect(response.body.success).toBe(false);
+  //   expect(response.body.error).toBe("Invalid conversation ID");
+  // });
+
+  // it("returns 400 when conversation ID is 1.5", async () => {
+  //   const token = signAccessToken(1);
+
+  //   const response = await request(app)
+  //     .patch("/conversations/1.5/read")
+  //     .set("Authorization", `Bearer ${token}`);
+
+  //   expect(response.status).toBe(400);
+  //   expect(response.body.success).toBe(false);
+  //   expect(response.body.error).toBe("Invalid conversation ID");
+  // });
+
+  // it("returns 400 when conversation ID is 9007199254740992", async () => {
+  //   const token = signAccessToken(1);
+
+  //   const response = await request(app)
+  //     .patch("/conversations/9007199254740992/read")
+  //     .set("Authorization", `Bearer ${token}`);
+
+  //   expect(response.status).toBe(400);
+  //   expect(response.body.success).toBe(false);
+  //   expect(response.body.error).toBe("Invalid conversation ID");
+  // });
+
+  it.each(["abc", "0", "-1", "1.5", "9007199254740992"])(
+    "returns 400 for invalid conversation ID %s",
+    async (conversationId) => {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .patch(`/conversations/${conversationId}/read`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid conversation ID");
+    },
+  );
+
+  it("returns 401 when JWT is missing", async () => {
+    const response = await request(app).patch("/conversations/7/read");
+
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe("Authentication required");
+  });
+
+  it("returns 500 when Prisma update fails", async () => {
+    const participant = {
+      id: 1,
+      userId: 1,
+      conversationId: 7,
+      joinedAt: new Date("2026-10-28T10:00:00.000Z"),
+      lastReadAt: null,
+    };
+
+    const participantSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce(participant);
+
+    const updatedParticipantSpy = vi
+      .spyOn(prisma.conversationParticipant, "update")
+      .mockRejectedValueOnce(new Error("Database failure"));
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .patch("/conversations/7/read")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Internal server error");
+    } finally {
+      participantSpy.mockRestore();
+      updatedParticipantSpy.mockRestore();
+    }
+  });
+});
