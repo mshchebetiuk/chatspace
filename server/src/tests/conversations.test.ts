@@ -941,4 +941,209 @@ describe("GET /conversations authenticated user", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBe("Authentication required");
   });
+
+  it("returns unreadCount 0 when there are no unread messages", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation]);
+
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([]);
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("Conversations fetched successfully");
+      expect(response.body.data[0].unreadCount).toBe(0);
+    } finally {
+      conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
+    }
+  });
+
+  it("returns unreadCount for unread messages", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation]);
+
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([
+      {
+        conversationId: 7,
+        unreadCount: 3n,
+      },
+    ]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data[0].unreadCount).toBe(3);
+    } finally {
+      conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
+    }
+  });
+
+  it("returns correct unreadCount for multiple conversations", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const unreadRaws = {
+      id: 8,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation, unreadRaws]);
+
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([
+      {
+        conversationId: 7,
+        unreadCount: 3n,
+      },
+      {
+        conversationId: 8,
+        unreadCount: 5n,
+      },
+    ]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data[0].unreadCount).toBe(3);
+      expect(response.body.data[1].unreadCount).toBe(5);
+    } finally {
+      conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
+    }
+  });
+
+  it("returns zero unreadCount for conversations missing from SQL results", async () => {
+    const createdAt = new Date("2026-10-28T10:00:00.000Z");
+
+    const conversation = {
+      id: 7,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const unreadRaws = {
+      id: 8,
+      createdAt,
+      updatedAt: createdAt,
+      privateUser1Id: 1,
+      privateUser2Id: 2,
+      participants: [],
+      messages: [],
+    };
+
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([conversation, unreadRaws]);
+
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([
+      {
+        conversationId: 7,
+        unreadCount: 3n,
+      },
+    ]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data[0].unreadCount).toBe(3);
+      expect(response.body.data[1].unreadCount).toBe(0);
+    } finally {
+      conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
+    }
+  });
+
+  it("returns an empty list when user has no conversations", async () => {
+    const conversationSpy = vi
+      .spyOn(prisma.conversation, "findMany")
+      .mockResolvedValueOnce([]);
+
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([]);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("Conversations fetched successfully");
+      expect(response.body.data).toEqual([]);
+    } finally {
+      conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
+    }
+  });
 });

@@ -12,6 +12,11 @@ export const conversationRouter = Router();
 conversationRouter.use(requireAuth);
 conversationRouter.use("/:id/messages", messageRouter);
 
+type UnreadCountRow = {
+  conversationId: number;
+  unreadCount: bigint;
+};
+
 conversationRouter.get("/", async (req, res) => {
   const currentUserId = Number(res.locals.userId);
 
@@ -39,6 +44,8 @@ conversationRouter.get("/", async (req, res) => {
               email: true,
             },
           },
+          userId: true,
+          lastReadAt: true,
         },
       },
       messages: {
@@ -54,12 +61,38 @@ conversationRouter.get("/", async (req, res) => {
     },
   });
 
+  const unreadRows = await prisma.$queryRaw<UnreadCountRow[]>`
+    SELECT 
+      cp."conversationId",
+      COUNT(m.id) AS "unreadCount"
+    FROM "ConversationParticipant" cp 
+    JOIN "Message" m 
+      ON m."conversationId" = cp."conversationId"
+    WHERE cp."userId" = ${currentUserId}
+      AND m."senderId" <> cp."userId"
+    AND (
+      cp."lastReadAt" IS NULL
+      OR m."createdAt" > cp."lastReadAt" 
+    )
+    GROUP BY cp."conversationId"
+  `;
+
+  const unreadCountMap = new Map<number, number>();
+
+  for (const unreadRow of unreadRows) {
+    const count = Number(unreadRow.unreadCount);
+    unreadCountMap.set(unreadRow.conversationId, count);
+  }
+
   const formattedConversations = conversations.map((conversation) => {
     const { messages, ...rest } = conversation;
+
+    const unreadCount = unreadCountMap.get(conversation.id);
 
     return {
       ...rest,
       lastMessage: messages[0] ?? null,
+      unreadCount: unreadCount ?? 0,
     };
   });
 
