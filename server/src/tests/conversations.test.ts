@@ -140,6 +140,181 @@ describe("GET /conversations/7/messages pagination metadata", () => {
       countSpy.mockRestore();
     }
   });
+
+  it("should return cursor pagination metadata", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const firstDate = new Date("2026-10-30T10:00:00.000Z");
+    const secondDate = new Date("2026-10-30T09:00:00.000Z");
+    const thirdDate = new Date("2026-10-30T08:00:00.000Z");
+
+    const messagesSpy = vi
+      .spyOn(prisma.message, "findMany")
+      .mockResolvedValueOnce([
+        {
+          id: 5,
+          content: "Hello ChatSpace!",
+          senderId: 1,
+          conversationId: 7,
+          createdAt: firstDate,
+          updatedAt: firstDate,
+        },
+        {
+          id: 4,
+          content: "Second message",
+          senderId: 2,
+          conversationId: 7,
+          createdAt: secondDate,
+          updatedAt: secondDate,
+        },
+        {
+          id: 3,
+          content: "Third message",
+          senderId: 1,
+          conversationId: 7,
+          createdAt: thirdDate,
+          updatedAt: thirdDate,
+        },
+      ]);
+
+    const countSpy = vi
+      .spyOn(prisma.message, "count")
+      .mockResolvedValueOnce(45);
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations/7/messages?mode=cursor&limit=2")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.messages).toHaveLength(2);
+      expect(response.body.data.total).toBe(45);
+      expect(response.body.data.paginationMode).toBe("cursor");
+      expect(response.body.data.hasMore).toBe(true);
+      expect(response.body.data.nextCursor).toBe(4);
+      expect(response.body.data).not.toHaveProperty("hasNextPage");
+      expect(response.body.data).not.toHaveProperty("hasPreviousPage");
+      expect(response.body.data).not.toHaveProperty("totalPages");
+      expect(
+        response.body.data.messages.map(
+          (message: { id: number }) => message.id,
+        ),
+      ).toEqual([5, 4]);
+      expect(messagesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 3,
+          skip: 0,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    } finally {
+      membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
+      countSpy.mockRestore();
+    }
+  });
+
+  it("should return second cursor page", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const firstDate = new Date("2026-10-30T09:00:00.000Z");
+    const secondDate = new Date("2026-10-30T08:00:00.000Z");
+    const thirdDate = new Date("2026-10-30T07:00:00.000Z");
+
+    const cursorSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce({
+        id: 4,
+        content: "Second message",
+        senderId: 2,
+        conversationId: 7,
+        createdAt: firstDate,
+        updatedAt: firstDate,
+      });
+
+    const messageSpy = vi
+      .spyOn(prisma.message, "findMany")
+      .mockResolvedValueOnce([
+        {
+          id: 3,
+          content: "Third message",
+          senderId: 1,
+          conversationId: 7,
+          createdAt: secondDate,
+          updatedAt: secondDate,
+        },
+        {
+          id: 2,
+          content: "Fourth message",
+          senderId: 2,
+          conversationId: 7,
+          createdAt: thirdDate,
+          updatedAt: thirdDate,
+        },
+      ]);
+
+    const countSpy = vi
+      .spyOn(prisma.message, "count")
+      .mockResolvedValueOnce(45);
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?mode=cursor&limit=2&cursor=4")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.messages).toHaveLength(2);
+      expect(
+        response.body.data.messages.map(
+          (message: { id: number }) => message.id,
+        ),
+      ).toEqual([3, 2]);
+      expect(response.body.data.hasMore).toBe(false);
+      expect(response.body.data.nextCursor).toBeNull();
+      expect(messageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 3,
+          skip: 1,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          cursor: { id: 4 },
+        }),
+      );
+      expect(cursorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 4,
+            conversationId: 7,
+          },
+        }),
+      );
+      expect(response.body.data.total).toBe(45);
+      expect(response.body.data.paginationMode).toBe("cursor");
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messageSpy.mockRestore();
+      countSpy.mockRestore();
+    }
+  });
 });
 
 describe("GET /conversations/7/messages with invalid page", () => {

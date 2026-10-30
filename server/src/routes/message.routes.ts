@@ -273,11 +273,12 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
   type MessageListData = {
     messages: typeof messages;
     total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
+    totalPages?: number;
+    hasNextPage?: boolean;
+    hasPreviousPage?: boolean;
     hasMore?: boolean;
     nextCursor?: number | null;
+    paginationMode: "offset" | "cursor";
   };
 
   const response: ApiResponse<MessageListData> = {
@@ -286,11 +287,12 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     data: {
       messages: paginatedMessages,
       total: total,
-      totalPages: totalPages,
-      hasNextPage: hasNextPage,
-      hasPreviousPage: hasPreviousPage,
-      hasMore,
-      nextCursor,
+      ...(paginationMode === "offset" ? { totalPages } : {}),
+      ...(paginationMode === "offset" ? { hasNextPage } : {}),
+      ...(paginationMode === "offset" ? { hasPreviousPage } : {}),
+      ...(paginationMode === "cursor" ? { hasMore } : {}),
+      ...(paginationMode === "cursor" ? { nextCursor } : {}),
+      paginationMode,
     },
   };
 
