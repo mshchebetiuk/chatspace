@@ -137,6 +137,10 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
 
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 20);
+  const skip = (page - 1) * limit;
+
+  const rawCursor = req.query.cursor;
+  const rawMode = req.query.mode;
 
   if (
     !Number.isSafeInteger(page) ||
@@ -153,8 +157,6 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     return res.status(400).json(response);
   }
 
-  const skip = (page - 1) * limit;
-
   if (!Number.isSafeInteger(skip) || skip > 2_147_483_647) {
     const response: ApiResponse<never> = {
       success: false,
@@ -164,13 +166,83 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     return res.status(400).json(response);
   }
 
+  let cursor: number | undefined;
+
+  if (rawCursor !== undefined) {
+    if (typeof rawCursor !== "string" || !/^\d+$/.test(rawCursor)) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Invalid cursor",
+      };
+      return res.status(400).json(response);
+    }
+
+    const parsedCursor = Number(rawCursor);
+
+    if (!Number.isSafeInteger(parsedCursor) || parsedCursor <= 0) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Invalid cursor",
+      };
+      return res.status(400).json(response);
+    }
+
+    cursor = parsedCursor;
+  }
+
+  if (rawMode !== undefined && rawMode !== "cursor" && rawMode !== "offset") {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Invalid pagination mode",
+    };
+
+    return res.status(400).json(response);
+  }
+
+  if (rawMode === "offset" && cursor !== undefined) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Conflicting pagination parameters",
+    };
+
+    return res.status(400).json(response);
+  }
+
+  const paginationMode: "offset" | "cursor" =
+    cursor !== undefined || rawMode === "cursor" ? "cursor" : "offset";
+
+  if (cursor !== undefined) {
+    const cursorMessage = await prisma.message.findFirst({
+      where: {
+        id: cursor,
+        conversationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!cursorMessage) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Invalid cursor",
+      };
+
+      return res.status(400).json(response);
+    }
+  }
+
   const messages = await prisma.message.findMany({
     where: {
       conversationId,
     },
-    skip,
-    take: limit,
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    ...(cursor !== undefined ? { cursor: { id: cursor } } : {}),
+    skip: cursor !== undefined ? 1 : paginationMode === "cursor" ? 0 : skip,
+    take: paginationMode === "cursor" ? limit + 1 : limit,
+    orderBy:
+      paginationMode === "cursor"
+        ? [{ createdAt: "desc" }, { id: "desc" }]
+        : [{ createdAt: "asc" }, { id: "asc" }],
     select: {
       id: true,
       content: true,
@@ -180,12 +252,20 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     },
   });
 
+  const hasMore = paginationMode === "cursor" && messages.length > limit;
+  const paginatedMessages =
+    paginationMode === "cursor" ? messages.slice(0, limit) : messages;
+
+  const lastMessage = paginatedMessages.at(-1);
+  const nextCursor = hasMore === true ? (lastMessage?.id ?? null) : null;
+
   const total = await prisma.message.count({
     where: {
       conversationId,
     },
   });
 
+  // Offset pagination metadata
   const totalPages = Math.ceil(total / limit);
   const hasNextPage = page < totalPages;
   const hasPreviousPage = page > 1;
@@ -196,17 +276,21 @@ messageRouter.get<{ id: string }>("/", async (req, res) => {
     totalPages: number;
     hasNextPage: boolean;
     hasPreviousPage: boolean;
+    hasMore?: boolean;
+    nextCursor?: number | null;
   };
 
   const response: ApiResponse<MessageListData> = {
     success: true,
     message: "Messages fetched successfully",
     data: {
-      messages: messages,
+      messages: paginatedMessages,
       total: total,
       totalPages: totalPages,
       hasNextPage: hasNextPage,
       hasPreviousPage: hasPreviousPage,
+      hasMore,
+      nextCursor,
     },
   };
 
