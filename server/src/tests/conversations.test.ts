@@ -315,6 +315,367 @@ describe("GET /conversations/7/messages pagination metadata", () => {
       countSpy.mockRestore();
     }
   });
+
+  it("should reject cursor from another conversation", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockResolvedValueOnce(null);
+
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?mode=cursor&limit=2&cursor=999")
+        .set("Authorization", `Bearer ${token}`);
+
+      // console.log("DEBUG RESPONSE:", response.status, response.body);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 999,
+            conversationId: 7,
+          },
+        }),
+      );
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject non-numeric cursor", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?cursor=abc")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject zero cursor", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?cursor=0")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject negative cursor", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?cursor=-5")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject fractional cursor", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?cursor=1.5")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject unsafe integer cursor", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?cursor=9007199254740992")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid cursor");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject cursor in offset mode", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?mode=offset&cursor=4")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Conflicting pagination parameters");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject limit above maximum", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=101")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid pagination parameters");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject zero limit", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=0")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid pagination parameters");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should reject limit is -1", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=-1")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Invalid pagination parameters");
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should accept maximum limit", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=100")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(cursorSpy).not.toHaveBeenCalled();
+      expect(messagesSpy).toHaveBeenCalledTimes(1);
+      expect(messagesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            conversationId: 7,
+          },
+          take: 100,
+          skip: 0,
+        }),
+      );
+    } finally {
+      membershipSpy.mockRestore();
+      cursorSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
 });
 
 describe("GET /conversations/7/messages with invalid page", () => {
