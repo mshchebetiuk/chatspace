@@ -639,6 +639,105 @@ describe("GET /conversations/7/messages pagination metadata", () => {
   });
 });
 
+describe("GET /conversations/7/messages database errors", () => {
+  it("should handle database errors when fetching messages", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+      });
+
+    const messagesSpy = vi
+      .spyOn(prisma.message, "findMany")
+      .mockRejectedValueOnce(new Error("Database connection failed"));
+
+    try {
+      const token = signAccessToken(1);
+
+      const response = await request(app)
+        .get("/conversations/7/messages")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Internal server error");
+      expect(response.body.error).not.toContain("Database connection failed");
+    } finally {
+      membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should handle database errors during membership check", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockRejectedValueOnce(new Error("Database connection failed"));
+
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Internal server error");
+      expect(response.body.error).not.toContain("Database connection failed");
+      expect(messagesSpy).not.toHaveBeenCalled();
+    } finally {
+      membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
+    }
+  });
+
+  it("should handle database errors during message count", async () => {
+    const countSpy = vi
+      .spyOn(prisma.message, "count")
+      .mockRejectedValueOnce(new Error("Database count failed"));
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=10&offset=0")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Internal server error");
+      expect(response.body.error).not.toContain("Database count failed");
+      expect(countSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      countSpy.mockRestore();
+    }
+  });
+
+  it("should handle database error during cursor lookup", async () => {
+    const cursorSpy = vi
+      .spyOn(prisma.message, "findFirst")
+      .mockRejectedValueOnce(new Error("Cursor lookup failed"));
+
+    try {
+      const token = signAccessToken(1);
+      const response = await request(app)
+        .get("/conversations/7/messages?limit=10&cursor=15")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe("Internal server error");
+      expect(response.body.error).not.toContain("Cursor lookup failed");
+      expect(cursorSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      cursorSpy.mockRestore();
+    }
+  });
+});
+
 describe("GET /conversations/7/messages with invalid page", () => {
   it("should return HTTP 400", async () => {
     const membershipSpy = vi
