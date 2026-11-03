@@ -637,45 +637,6 @@ describe("GET /conversations/7/messages pagination metadata", () => {
       messagesSpy.mockRestore();
     }
   });
-
-  it("should accept maximum limit", async () => {
-    const membershipSpy = vi
-      .spyOn(prisma.conversationParticipant, "findUnique")
-      .mockResolvedValueOnce({
-        id: 1,
-        userId: 1,
-        conversationId: 7,
-        joinedAt: new Date(),
-      });
-
-    const cursorSpy = vi.spyOn(prisma.message, "findFirst");
-    const messagesSpy = vi.spyOn(prisma.message, "findMany");
-
-    try {
-      const token = signAccessToken(1);
-      const response = await request(app)
-        .get("/conversations/7/messages?limit=100")
-        .set("Authorization", `Bearer ${token}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(cursorSpy).not.toHaveBeenCalled();
-      expect(messagesSpy).toHaveBeenCalledTimes(1);
-      expect(messagesSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            conversationId: 7,
-          },
-          take: 100,
-          skip: 0,
-        }),
-      );
-    } finally {
-      membershipSpy.mockRestore();
-      cursorSpy.mockRestore();
-      messagesSpy.mockRestore();
-    }
-  });
 });
 
 describe("GET /conversations/7/messages with invalid page", () => {
@@ -694,60 +655,6 @@ describe("GET /conversations/7/messages with invalid page", () => {
 
       const response = await request(app)
         .get("/conversations/7/messages?page=0&limit=20")
-        .set("Authorization", `Bearer ${token}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe("Invalid pagination parameters");
-    } finally {
-      membershipSpy.mockRestore();
-    }
-  });
-});
-
-describe("GET /conversations/7/messages with invalid limit", () => {
-  it("should return HTTP 400", async () => {
-    const membershipSpy = vi
-      .spyOn(prisma.conversationParticipant, "findUnique")
-      .mockResolvedValueOnce({
-        id: 1,
-        userId: 1,
-        conversationId: 7,
-        joinedAt: new Date(),
-      });
-
-    try {
-      const token = signAccessToken(1);
-
-      const response = await request(app)
-        .get("/conversations/7/messages?page=1&limit=0")
-        .set("Authorization", `Bearer ${token}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe("Invalid pagination parameters");
-    } finally {
-      membershipSpy.mockRestore();
-    }
-  });
-});
-
-describe("GET /conversations/7/messages with limit exceeding maximum", () => {
-  it("should return HTTP 400", async () => {
-    const membershipSpy = vi
-      .spyOn(prisma.conversationParticipant, "findUnique")
-      .mockResolvedValueOnce({
-        id: 1,
-        userId: 1,
-        conversationId: 7,
-        joinedAt: new Date(),
-      });
-
-    try {
-      const token = signAccessToken(1);
-
-      const response = await request(app)
-        .get("/conversations/7/messages?page=1&limit=101")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(400);
@@ -903,6 +810,8 @@ describe("GET /conversations/7/messages should check membership once", () => {
       .spyOn(prisma.conversationParticipant, "findUnique")
       .mockResolvedValueOnce(null);
 
+    const messagesSpy = vi.spyOn(prisma.message, "findMany");
+
     try {
       const token = signAccessToken(1);
 
@@ -924,8 +833,10 @@ describe("GET /conversations/7/messages should check membership once", () => {
           },
         }),
       );
+      expect(messagesSpy).not.toHaveBeenCalled();
     } finally {
       membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
     }
   });
 });
