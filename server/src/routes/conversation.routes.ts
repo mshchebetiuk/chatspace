@@ -6,6 +6,7 @@ import { prisma } from "../config/prisma.js";
 import { createConversationSchema } from "../validators/conversation.schema.js";
 import { Prisma } from "../generated/prisma/client.js";
 import type { ApiResponse } from "../types/api.types.js";
+import { markConversationAsReadController } from "../controllers/conversation.controller.js";
 
 export const conversationRouter = Router();
 
@@ -225,59 +226,7 @@ conversationRouter.post("/", async (req, res) => {
   }
 });
 
-conversationRouter.patch("/:conversationId/read", async (req, res) => {
-  const currentUserId = Number(res.locals.userId);
-  const conversationId = Number(req.params.conversationId);
-
-  if (
-    !Number.isSafeInteger(currentUserId) ||
-    !Number.isSafeInteger(conversationId) ||
-    currentUserId <= 0 ||
-    conversationId <= 0
-  ) {
-    const response: ApiResponse<never> = {
-      success: false,
-      error: "Invalid conversation ID",
-    };
-
-    return res.status(400).json(response);
-  }
-
-  const participant = await prisma.conversationParticipant.findUnique({
-    where: {
-      userId_conversationId: {
-        userId: currentUserId,
-        conversationId,
-      },
-    },
-  });
-
-  if (!participant) {
-    const response: ApiResponse<never> = {
-      success: false,
-      error: "Conversation not found",
-    };
-
-    return res.status(404).json(response);
-  }
-
-  await prisma.conversationParticipant.update({
-    where: {
-      userId_conversationId: {
-        userId: currentUserId,
-        conversationId,
-      },
-    },
-    data: {
-      lastReadAt: new Date(),
-    },
-  });
-
-  const response: ApiResponse<null> = {
-    success: true,
-    message: "Conversation marked as read",
-    data: null,
-  };
-
-  return res.status(200).json(response);
-});
+conversationRouter.patch(
+  "/:conversationId/read",
+  markConversationAsReadController,
+);
