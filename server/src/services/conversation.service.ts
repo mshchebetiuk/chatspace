@@ -1,9 +1,27 @@
 import { prisma } from "../config/prisma.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 type UnreadCountRow = {
   conversationId: number;
   unreadCount: bigint;
 };
+
+type ConversationWithParticipants = Prisma.ConversationGetPayload<{
+  include: {
+    participants: {
+      select: {
+        userId: true;
+        joinedAt: true;
+      };
+    };
+  };
+}>;
+
+type CreateConversationResult =
+  | { status: "SELF_CONVERSATION" }
+  | { status: "PARTICIPANT_NOT_FOUND" }
+  | { status: "CREATED"; conversation: ConversationWithParticipants }
+  | { status: "EXISTING"; conversation: ConversationWithParticipants };
 
 export async function markConversationAsRead(
   currentUserId: number,
@@ -112,4 +130,71 @@ export async function getUserConversations(currentUserId: number) {
   });
 
   return formattedConversations;
+}
+
+export async function createConversation(
+  currentUserId: number,
+  participantId: number,
+): Promise<CreateConversationResult> {
+  if (currentUserId === participantId) {
+    return { status: "SELF_CONVERSATION" };
+  }
+
+  const participant = await prisma.user.findUnique({
+    where: {
+      id: participantId,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  });
+
+  if (!participant) {
+    return { status: "PARTICIPANT_NOT_FOUND" };
+  }
+
+  const privateUser1Id = Math.min(currentUserId, participantId);
+  const privateUser2Id = Math.max(currentUserId, participantId);
+
+  try {
+    const conversation = await prisma.conversation.create({
+      data: {
+        privateUser1Id,
+        privateUser2Id,
+        participants: {
+          create: [{ userId: currentUserId }, { userId: participantId }],
+        },
+      },
+      include: {
+        participants: true,
+      },
+    });
+
+    return { status: "CREATED", conversation: conversation };
+  } catch (error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existingConversation = await prisma.conversation.findUnique({
+        where: {
+          privateUser1Id_privateUser2Id: {
+            privateUser1Id,
+            privateUser2Id,
+          },
+        },
+        include: {
+          participants: true,
+        },
+      });
+
+      if (existingConversation) {
+        return { status: "EXISTING", conversation: existingConversation };
+      }
+    }
+
+    throw error;
+  }
 }
