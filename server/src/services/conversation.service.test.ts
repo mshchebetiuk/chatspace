@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createConversation } from "./conversation.service.js";
 import { prisma } from "../config/prisma.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 vi.mock("../config/prisma.js", () => ({
   prisma: {
@@ -9,6 +10,7 @@ vi.mock("../config/prisma.js", () => ({
     },
     conversation: {
       create: vi.fn(),
+      findUnique: vi.fn(),
     },
   },
 }));
@@ -93,5 +95,140 @@ describe("createConversation", () => {
     });
 
     expect(prisma.conversation.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("should normalize participant IDs in reverse order", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 5,
+      name: "Test User",
+      email: "test@example.com",
+      passwordHash: "test-hash",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+    });
+
+    const mockConversation = {
+      id: 100,
+      privateUser1Id: 5,
+      privateUser2Id: 9,
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+      participants: [
+        {
+          userId: 5,
+          joinedAt: new Date("2026-01-01"),
+        },
+        {
+          userId: 9,
+          joinedAt: new Date("2026-01-01"),
+        },
+      ],
+    };
+
+    vi.mocked(prisma.conversation.create).mockResolvedValueOnce(
+      mockConversation,
+    );
+
+    const result = await createConversation(9, 5);
+
+    expect(prisma.conversation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          privateUser1Id: 5,
+          privateUser2Id: 9,
+        }),
+      }),
+    );
+
+    expect(result).toEqual({
+      status: "CREATED",
+      conversation: mockConversation,
+    });
+  });
+
+  it("should return EXISTING when conversation already exists", async () => {
+    const prismaError = new Prisma.PrismaClientKnownRequestError(
+      "Unique constraint failed",
+      {
+        code: "P2002",
+        clientVersion: "7.0.0",
+      },
+    );
+
+    vi.mocked(prisma.conversation.create).mockRejectedValue(prismaError);
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 9,
+      name: "Test User",
+      email: "test@example.com",
+      passwordHash: "test-hash",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+    });
+
+    const existingConversation = {
+      id: 100,
+      privateUser1Id: 5,
+      privateUser2Id: 9,
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+      participants: [
+        {
+          userId: 5,
+          joinedAt: new Date("2026-01-01"),
+        },
+        {
+          userId: 9,
+          joinedAt: new Date("2026-01-01"),
+        },
+      ],
+    };
+
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(
+      existingConversation,
+    );
+
+    const result = await createConversation(5, 9);
+
+    expect(result).toEqual({
+      status: "EXISTING",
+      conversation: existingConversation,
+    });
+
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
+      where: {
+        privateUser1Id_privateUser2Id: {
+          privateUser1Id: 5,
+          privateUser2Id: 9,
+        },
+      },
+      include: {
+        participants: true,
+      },
+    });
+  });
+
+  it("should rethrow unexpected Prisma errors", async () => {
+    const prismaError = new Prisma.PrismaClientKnownRequestError(
+      "Record not found",
+      {
+        code: "P2025",
+        clientVersion: "7.0.0",
+      },
+    );
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 9,
+      name: "Test User",
+      email: "test@example.com",
+      passwordHash: "test-hash",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+    });
+
+    vi.mocked(prisma.conversation.create).mockRejectedValue(prismaError);
+
+    await expect(createConversation(5, 9)).rejects.toThrow("Record not found");
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
   });
 });
