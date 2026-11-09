@@ -254,6 +254,17 @@ describe("createConversation", () => {
     });
 
     await expect(createConversation(5, 9)).rejects.toBe(prismaError);
-    expect(prisma.conversation.findUnique).toHaveBeenCalledWith(5);
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
+      where: {
+        privateUser1Id_privateUser2Id: {
+          privateUser1Id: 5,
+          privateUser2Id: 9,
+        },
+      },
+      include: {
+        participants: true,
+      },
+    });
+    expect(prisma.conversation.findUnique).toHaveBeenCalledTimes(1);
   });
 });

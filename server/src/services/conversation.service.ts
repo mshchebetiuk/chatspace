@@ -132,6 +132,17 @@ export async function getUserConversations(currentUserId: number) {
   return formattedConversations;
 }
 
+const conversationInclude = {
+  participants: true,
+} as const satisfies Prisma.ConversationInclude;
+
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
+}
+
 export async function createConversation(
   currentUserId: number,
   participantId: number,
@@ -167,17 +178,12 @@ export async function createConversation(
           create: [{ userId: currentUserId }, { userId: participantId }],
         },
       },
-      include: {
-        participants: true,
-      },
+      include: conversationInclude,
     });
 
-    return { status: "CREATED", conversation: conversation };
+    return { status: "CREATED", conversation };
   } catch (error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (isPrismaUniqueConstraintError(error)) {
       const existingConversation = await prisma.conversation.findUnique({
         where: {
           privateUser1Id_privateUser2Id: {
@@ -185,9 +191,7 @@ export async function createConversation(
             privateUser2Id,
           },
         },
-        include: {
-          participants: true,
-        },
+        include: conversationInclude,
       });
 
       if (existingConversation) {
