@@ -231,4 +231,29 @@ describe("createConversation", () => {
     await expect(createConversation(5, 9)).rejects.toThrow("Record not found");
     expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
   });
+
+  it("should rethrow P2002 when existing conversation is not found", async () => {
+    const prismaError = new Prisma.PrismaClientKnownRequestError(
+      "Unique constraint failed",
+      {
+        code: "P2002",
+        clientVersion: "7.0.0",
+      },
+    );
+
+    vi.mocked(prisma.conversation.create).mockRejectedValue(prismaError);
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(null);
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 9,
+      name: "Test User",
+      email: "test@example.com",
+      passwordHash: "test-hash",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+    });
+
+    await expect(createConversation(5, 9)).rejects.toBe(prismaError);
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith(5);
+  });
 });
