@@ -5,6 +5,10 @@ export async function getConversationMessages(
   limit: number,
   cursor?: number,
 ) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new RangeError("Invalid message limit");
+  }
+
   return prisma.message.findMany({
     where: {
       conversationId,
