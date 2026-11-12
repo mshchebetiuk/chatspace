@@ -16,6 +16,15 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return;
   }
 
+  if (error instanceof Error && error.message === "Access denied") {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Access denied",
+    };
+
+    return res.status(403).json(response);
+  }
+
   console.error("Unhandled API error:", error);
 
   const response: ApiResponse<never> = {
