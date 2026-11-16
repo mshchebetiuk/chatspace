@@ -21,6 +21,7 @@ describe("getConversationMessages", () => {
       userId: 5,
       conversationId: 10,
       joinedAt: new Date("2026-01-01"),
+      lastReadAt: null,
     });
   });
 

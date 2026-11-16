@@ -73,6 +73,7 @@ describe("GET /conversations/7/messages authenticated participant", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -110,6 +111,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -149,6 +151,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const firstDate = new Date("2026-10-30T10:00:00.000Z");
@@ -232,6 +235,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const firstDate = new Date("2026-10-30T09:00:00.000Z");
@@ -324,6 +328,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi
@@ -367,6 +372,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -398,6 +404,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -429,6 +436,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -460,6 +468,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -491,6 +500,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -522,6 +532,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -553,6 +564,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -584,6 +596,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -615,6 +628,7 @@ describe("GET /conversations/7/messages pagination metadata", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const cursorSpy = vi.spyOn(prisma.message, "findFirst");
@@ -648,6 +662,7 @@ describe("GET /conversations/7/messages database errors", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -696,6 +711,20 @@ describe("GET /conversations/7/messages database errors", () => {
   });
 
   it("should handle database errors during message count", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+        lastReadAt: null,
+      });
+
+    const messagesSpy = vi
+      .spyOn(prisma.message, "findMany")
+      .mockResolvedValueOnce([]);
+
     const countSpy = vi
       .spyOn(prisma.message, "count")
       .mockRejectedValueOnce(new Error("Database count failed"));
@@ -712,11 +741,23 @@ describe("GET /conversations/7/messages database errors", () => {
       expect(response.body.error).not.toContain("Database count failed");
       expect(countSpy).toHaveBeenCalledTimes(1);
     } finally {
+      membershipSpy.mockRestore();
+      messagesSpy.mockRestore();
       countSpy.mockRestore();
     }
   });
 
   it("should handle database error during cursor lookup", async () => {
+    const membershipSpy = vi
+      .spyOn(prisma.conversationParticipant, "findUnique")
+      .mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        conversationId: 7,
+        joinedAt: new Date(),
+        lastReadAt: null,
+      });
+
     const cursorSpy = vi
       .spyOn(prisma.message, "findFirst")
       .mockRejectedValueOnce(new Error("Cursor lookup failed"));
@@ -733,6 +774,7 @@ describe("GET /conversations/7/messages database errors", () => {
       expect(response.body.error).not.toContain("Cursor lookup failed");
       expect(cursorSpy).toHaveBeenCalledTimes(1);
     } finally {
+      membershipSpy.mockRestore();
       cursorSpy.mockRestore();
     }
   });
@@ -747,6 +789,7 @@ describe("GET /conversations/7/messages with invalid page", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     try {
@@ -774,6 +817,7 @@ describe("GET /conversations/7/messages with fractional page", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     try {
@@ -801,6 +845,7 @@ describe("GET /conversations/7/messages with fractional limit", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     try {
@@ -884,6 +929,7 @@ describe("GET /conversations/abc/messages should not query membership", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     try {
@@ -975,6 +1021,7 @@ describe("GET /conversations/7/messages should use correct pagination param", ()
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -1023,6 +1070,7 @@ describe("GET /conversations/7/messages should use default pagination", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -1064,6 +1112,7 @@ describe("GET /conversations/7/messages should accept maximum limit", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messagesSpy = vi
@@ -1107,6 +1156,7 @@ describe("GET /conversations/7/messages should return message data", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const createdAt = new Date("2026-10-27T10:00:00.000Z");
@@ -1158,6 +1208,7 @@ describe("PATCH /conversations/7/messages/3", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const createdAt = new Date("2026-10-27T10:00:00.000Z");
@@ -1228,6 +1279,7 @@ describe("PATCH /conversations/7/messages/3 by non-author", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messageSpy = vi
@@ -1280,6 +1332,7 @@ describe("DELETE /conversations/7/messages/3", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const createdAt = new Date("2026-10-27T10:00:00.000Z");
@@ -1339,6 +1392,7 @@ describe("DELETE /conversations/7/messages/3 by non-author", () => {
         userId: 1,
         conversationId: 7,
         joinedAt: new Date(),
+        lastReadAt: null,
       });
 
     const messageSpy = vi
@@ -1386,6 +1440,8 @@ describe("GET /conversations authenticated user", () => {
       .spyOn(prisma.conversation, "findMany")
       .mockResolvedValueOnce([]);
 
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([]);
+
     try {
       const token = signAccessToken(1);
 
@@ -1398,6 +1454,7 @@ describe("GET /conversations authenticated user", () => {
       expect(response.body.data).toEqual([]);
     } finally {
       conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
     }
   });
 
@@ -1427,6 +1484,8 @@ describe("GET /conversations authenticated user", () => {
       .spyOn(prisma.conversation, "findMany")
       .mockResolvedValueOnce([conversation]);
 
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([]);
+
     try {
       const token = signAccessToken(1);
 
@@ -1440,6 +1499,7 @@ describe("GET /conversations authenticated user", () => {
       );
     } finally {
       conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
     }
   });
 
@@ -1460,6 +1520,8 @@ describe("GET /conversations authenticated user", () => {
       .spyOn(prisma.conversation, "findMany")
       .mockResolvedValueOnce([conversation]);
 
+    const queryRawSpy = vi.spyOn(prisma, "$queryRaw").mockResolvedValueOnce([]);
+
     try {
       const token = signAccessToken(1);
 
@@ -1477,6 +1539,7 @@ describe("GET /conversations authenticated user", () => {
       );
     } finally {
       conversationSpy.mockRestore();
+      queryRawSpy.mockRestore();
     }
   });
 
