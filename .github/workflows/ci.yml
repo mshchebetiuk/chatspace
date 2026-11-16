@@ -1,0 +1,48 @@
+name: ChatSpace CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: ./server
+        run: pnpm exec prisma generate
+
+      - name: TypeScript Typecheck
+        working-directory: ./server
+        run: pnpm typecheck
+
+      - name: Run Tests
+        working-directory: ./server
+        env:
+          JWT_SECRET: "chatspace-ci-test-secret-not-for-production-2026"
+          DATABASE_URL: "postgresql://test:test@localhost:5432/chatspace_test"
+        run: pnpm test
+
+      - name: Build TypeScript
+        working-directory: ./server
+        run: pnpm build
