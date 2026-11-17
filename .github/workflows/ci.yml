@@ -30,6 +30,8 @@ jobs:
 
       - name: Generate Prisma Client
         working-directory: ./server
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/chatspace_test"
         run: pnpm exec prisma generate
 
       - name: TypeScript Typecheck
