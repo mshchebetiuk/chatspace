@@ -1,15 +1,18 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 export type MessageInputProps = {
   placeholder: string;
   onSendMessage: (message: string) => void;
+  disabled: boolean;
 };
 
 export function MessageInput({
   placeholder,
   onSendMessage,
+  disabled,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
 
@@ -34,7 +37,8 @@ export function MessageInput({
 
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={disabled}
       >
         Send
       </button>

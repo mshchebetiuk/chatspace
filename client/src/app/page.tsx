@@ -12,10 +12,16 @@ import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesByConversation, setMessagesByConversation] = useState<
+    Record<string, Message[]>
+  >({});
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(null);
+
+  const activeMessages = activeConversationId
+    ? (messagesByConversation[activeConversationId] ?? [])
+    : [];
 
   const conversations: Conversation[] = [
     {
@@ -36,6 +42,10 @@ export default function Home() {
   ];
 
   const handleSendMessage = (message: string) => {
+    if (activeConversationId === null) {
+      return;
+    }
+
     const newMessage = {
       id: crypto.randomUUID(),
       sender: "Me",
@@ -43,7 +53,13 @@ export default function Home() {
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setMessagesByConversation((prev) => ({
+      ...prev,
+      [activeConversationId]: [
+        ...(prev[activeConversationId] ?? []),
+        newMessage,
+      ],
+    }));
   };
 
   const handleSelectConversation = (conversationId: string) => {
@@ -70,10 +86,11 @@ export default function Home() {
         </div>
 
         <div className="md:col-span-2">
-          <MessageList messages={messages} />
+          <MessageList messages={activeMessages} />
           <MessageInput
             placeholder="Type a message..."
             onSendMessage={handleSendMessage}
+            disabled={activeConversationId === null}
           />
         </div>
       </div>
