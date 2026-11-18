@@ -1,10 +1,22 @@
+"use client";
+
+import { useState } from "react";
+
 import ChatHeader from "@/components/chat/ChatHeader";
-import {
-  Conversation,
-  ConversationList,
-} from "@/components/chat/ConversationList";
+
+import type { Conversation } from "@/components/chat/ConversationList";
+import { ConversationList } from "@/components/chat/ConversationList";
+
+import type { Message } from "@/components/chat/MessageList";
+import { MessageList } from "@/components/chat/MessageList";
+import { MessageInput } from "@/components/chat/MessageInput";
 
 export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+
   const conversations: Conversation[] = [
     {
       id: "1",
@@ -23,13 +35,48 @@ export default function Home() {
     },
   ];
 
+  const handleSendMessage = (message: string) => {
+    const newMessage = {
+      id: crypto.randomUUID(),
+      sender: "Me",
+      content: message,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    setActiveConversationId(conversationId);
+  };
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen p-6">
       <h1 className="text-4xl font-bold">ChatSpace</h1>
+      <p>
+        Active conversation ID:{" "}
+        {activeConversationId ?? "No conversation selected"}
+      </p>
       <p className="mt-4 text-gray-500">Connect and chat with your friends.</p>
 
-      <ChatHeader />
-      <ConversationList conversations={conversations} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <div className="md:col-span-1">
+          <ChatHeader />
+          <ConversationList
+            conversations={conversations}
+            onSelectConversation={handleSelectConversation}
+            activeConversationId={activeConversationId}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <MessageList messages={messages} />
+          <MessageInput
+            placeholder="Type a message..."
+            onSendMessage={handleSendMessage}
+          />
+        </div>
+      </div>
     </main>
   );
 }
