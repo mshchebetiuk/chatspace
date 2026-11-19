@@ -66,6 +66,21 @@ export default function Home() {
     setActiveConversationId(conversationId);
   };
 
+  // const testMessages: Message[] = [
+  //   {
+  //     id: "test-1",
+  //     sender: "Olena",
+  //     content: "Hello",
+  //     createdAt: new Date().toISOString(),
+  //   },
+  //   {
+  //     id: "test-2",
+  //     sender: "Me",
+  //     content: "Hi, Olena!",
+  //     createdAt: new Date().toISOString(),
+  //   },
+  // ];
+
   return (
     <main className="min-h-screen p-6">
       <h1 className="text-4xl font-bold">ChatSpace</h1>
