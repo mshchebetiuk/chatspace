@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
 export type Message = {
   id: string;
   sender: string;
@@ -10,6 +14,15 @@ export type MessageListProps = {
 };
 
 export function MessageList({ messages }: MessageListProps) {
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages]);
+
   if (messages.length === 0) {
     return (
       <section className="w-full p-4">
@@ -22,7 +35,7 @@ export function MessageList({ messages }: MessageListProps) {
   return (
     <section className="w-full p-4">
       <h2 className="text-xl font-semibold mb-4">Messages</h2>
-      <div className="space-y-3">
+      <div className="space-y-3 h-64 overflow-y-auto md:h-96">
         {messages.map((message) => {
           const createdAt = new Date(message.createdAt);
           const today = new Date();
@@ -69,6 +82,8 @@ export function MessageList({ messages }: MessageListProps) {
             </div>
           );
         })}
+
+        <div ref={bottomRef}></div>
       </div>
     </section>
   );
