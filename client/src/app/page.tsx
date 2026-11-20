@@ -101,7 +101,10 @@ export default function Home() {
         </div>
 
         <div className="md:col-span-2">
-          <MessageList messages={activeMessages} />
+          <MessageList
+            key={activeConversationId ?? "no-conversation"}
+            messages={activeMessages}
+          />
           <MessageInput
             placeholder="Type a message..."
             onSendMessage={handleSendMessage}

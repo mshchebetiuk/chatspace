@@ -14,13 +14,33 @@ export type MessageListProps = {
 };
 
 export function MessageList({ messages }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef<boolean>(true);
+
+  const handleScroll = (): void => {
+    shouldAutoScrollRef.current = isNearBottom();
+  };
+
+  const isNearBottom = (): boolean => {
+    const container = containerRef.current;
+
+    if (!container) return false;
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    return distanceFromBottom <= 50;
+  };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
+    if (!shouldAutoScrollRef.current) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   if (messages.length === 0) {
@@ -35,7 +55,11 @@ export function MessageList({ messages }: MessageListProps) {
   return (
     <section className="w-full p-4">
       <h2 className="text-xl font-semibold mb-4">Messages</h2>
-      <div className="space-y-3 h-64 overflow-y-auto md:h-96">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="space-y-3 h-64 overflow-y-auto md:h-96"
+      >
         {messages.map((message) => {
           const createdAt = new Date(message.createdAt);
           const today = new Date();
@@ -82,8 +106,6 @@ export function MessageList({ messages }: MessageListProps) {
             </div>
           );
         })}
-
-        <div ref={bottomRef}></div>
       </div>
     </section>
   );
