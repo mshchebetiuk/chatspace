@@ -34,7 +34,13 @@ export function MessageInput({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         disabled={disabled}
+        maxLength={500}
       />
+      <span
+        className={`text-xs ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}
+      >
+        {message.length} / 500
+      </span>
 
       <button
         type="submit"
