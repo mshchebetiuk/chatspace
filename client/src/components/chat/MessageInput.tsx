@@ -33,12 +33,13 @@ export function MessageInput({
         placeholder={placeholder}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
+        disabled={disabled}
       />
 
       <button
         type="submit"
         className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={disabled}
+        disabled={disabled || !message.trim()}
       >
         Send
       </button>
