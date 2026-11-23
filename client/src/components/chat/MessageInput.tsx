@@ -16,25 +16,35 @@ export function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!message.trim()) return;
+  const sendMessage = () => {
+    if (!message.trim()) {
+      return;
+    }
 
     onSendMessage(message.trim());
     setMessage("");
   };
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    sendMessage();
+  };
+
   return (
     <form className="flex gap-2 p-4 border-t" onSubmit={handleSubmit}>
-      <input
-        type="text"
+      <textarea
         className="flex-1 border rounded-lg px-3 py-2"
         placeholder={placeholder}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         disabled={disabled}
         maxLength={500}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        }}
       />
       <span
         className={`text-xs ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}

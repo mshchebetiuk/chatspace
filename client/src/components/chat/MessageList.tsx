@@ -100,10 +100,12 @@ export function MessageList({ messages }: MessageListProps) {
               className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
             >
               <article
-                className={`max-w-[90%] md:max-w-[75%] rounded-lg p-3 ${isOwnMessage ? "bg-blue-100" : "bg-gray-100"}`}
+                className={`max-w-[90%] md:max-w-[75%] rounded-lg p-3 min-w-0 ${isOwnMessage ? "bg-blue-100" : "bg-gray-100"}`}
               >
                 <h3 className="font-semibold text-sm">{message.sender}</h3>
-                <p className="text-sm mt-1">{message.content}</p>
+                <p className="text-sm mt-1 whitespace-pre-wrap wrap-anywhere">
+                  {message.content}
+                </p>
                 <p className="text-xs text-gray-500 mt-2">
                   {formatMessageDate(createdAt)}, {formatMessageTime(createdAt)}
                 </p>
