@@ -13,6 +13,36 @@ export type MessageListProps = {
   messages: Message[];
 };
 
+const formatMessageTime = (date: Date): string => {
+  return date.toLocaleTimeString("uk-UA", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatMessageDate = (date: Date): string => {
+  const today = new Date();
+
+  const isToday: boolean =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
+  if (isToday === true) return "Today";
+
+  const yesterday = new Date(today.getTime());
+  yesterday.setDate(today.getDate() - 1);
+
+  const isYesterday: boolean =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  if (isYesterday === true) return "Yesterday";
+
+  return date.toLocaleDateString("uk-UA");
+};
+
 export function MessageList({ messages }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef<boolean>(true);
@@ -62,27 +92,6 @@ export function MessageList({ messages }: MessageListProps) {
       >
         {messages.map((message) => {
           const createdAt = new Date(message.createdAt);
-          const today = new Date();
-
-          const isToday: boolean =
-            createdAt.getFullYear() === today.getFullYear() &&
-            createdAt.getMonth() === today.getMonth() &&
-            createdAt.getDate() === today.getDate();
-
-          const yesterday = new Date(today);
-          yesterday.setDate(today.getDate() - 1);
-
-          const isYesterday: boolean =
-            createdAt.getFullYear() === yesterday.getFullYear() &&
-            createdAt.getMonth() === yesterday.getMonth() &&
-            createdAt.getDate() === yesterday.getDate();
-
-          const dateLabel: string = isToday
-            ? "Today"
-            : isYesterday
-              ? "Yesterday"
-              : createdAt.toLocaleDateString("uk-UA");
-
           const isOwnMessage: boolean = message.sender === "Me";
 
           return (
@@ -96,11 +105,7 @@ export function MessageList({ messages }: MessageListProps) {
                 <h3 className="font-semibold text-sm">{message.sender}</h3>
                 <p className="text-sm mt-1">{message.content}</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  {dateLabel},{" "}
-                  {createdAt.toLocaleTimeString("uk-UA", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatMessageDate(createdAt)}, {formatMessageTime(createdAt)}
                 </p>
               </article>
             </div>
