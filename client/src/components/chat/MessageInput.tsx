@@ -61,6 +61,10 @@ export function MessageInput({
         maxLength={500}
         rows={1}
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) {
+            return;
+          }
+
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
