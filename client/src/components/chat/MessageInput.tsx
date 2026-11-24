@@ -1,21 +1,29 @@
 "use client";
 
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import type { FormEvent } from "react";
 
 export type MessageInputProps = {
   placeholder: string;
   onSendMessage: (message: string) => void;
   disabled: boolean;
+  conversationId: string | null;
 };
 
 export function MessageInput({
   placeholder,
   onSendMessage,
   disabled,
+  conversationId,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (disabled === false) {
+      textareaRef.current?.focus();
+    }
+  }, [disabled, conversationId]);
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
@@ -33,6 +41,7 @@ export function MessageInput({
 
     onSendMessage(message.trim());
     setMessage("");
+    textareaRef.current?.focus();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

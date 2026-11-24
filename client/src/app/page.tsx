@@ -109,6 +109,7 @@ export default function Home() {
             placeholder="Type a message..."
             onSendMessage={handleSendMessage}
             disabled={activeConversationId === null}
+            conversationId={activeConversationId}
           />
         </div>
       </div>
