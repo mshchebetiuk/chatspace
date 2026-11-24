@@ -50,15 +50,16 @@ export function MessageInput({
   };
 
   return (
-    <form className="flex gap-2 p-4 border-t" onSubmit={handleSubmit}>
+    <form className="flex gap-2 p-4 border-t items-end" onSubmit={handleSubmit}>
       <textarea
-        className="flex-1 border rounded-lg px-3 py-2 max-h-40 overflow-y-auto"
+        className="flex-1 border rounded-lg px-3 py-2 max-h-40 overflow-y-auto resize-none"
         placeholder={placeholder}
         value={message}
         ref={textareaRef}
         onChange={(e) => setMessage(e.target.value)}
         disabled={disabled}
         maxLength={500}
+        rows={1}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -67,7 +68,7 @@ export function MessageInput({
         }}
       />
       <span
-        className={`text-xs ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}
+        className={`text-xs pb-3 shrink-0 ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}
       >
         {message.length} / 500
       </span>
