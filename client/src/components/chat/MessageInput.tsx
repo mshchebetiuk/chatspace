@@ -16,8 +16,20 @@ export function MessageInput({
   disabled,
   conversationId,
 }: MessageInputProps) {
-  const [message, setMessage] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const currentDraft =
+    conversationId !== null ? (drafts[conversationId] ?? "") : "";
+
+  const updateCurrentDraft = (value: string) => {
+    if (conversationId === null) return;
+
+    setDrafts((prev) => ({
+      ...prev,
+      [conversationId]: value,
+    }));
+  };
 
   useEffect(() => {
     if (disabled === false) {
@@ -32,15 +44,19 @@ export function MessageInput({
       textarea.style.height = "auto";
       textarea.style.height = `${textarea.scrollHeight}px`;
     }
-  }, [message]);
+  }, [currentDraft]);
 
   const sendMessage = () => {
-    if (!message.trim()) {
+    if (conversationId === null || disabled) return;
+
+    const trimmedDraft = currentDraft.trim();
+
+    if (!trimmedDraft) {
       return;
     }
 
-    onSendMessage(message.trim());
-    setMessage("");
+    onSendMessage(trimmedDraft);
+    updateCurrentDraft("");
     textareaRef.current?.focus();
   };
 
@@ -57,9 +73,9 @@ export function MessageInput({
         name="message"
         aria-label="Message"
         aria-describedby="message-counter"
-        value={message}
+        value={currentDraft}
         ref={textareaRef}
-        onChange={(e) => setMessage(e.target.value)}
+        onChange={(e) => updateCurrentDraft(e.target.value)}
         disabled={disabled}
         maxLength={500}
         rows={1}
@@ -76,15 +92,15 @@ export function MessageInput({
       />
       <span
         id="message-counter"
-        className={`text-xs pb-3 shrink-0 ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}
+        className={`text-xs pb-3 shrink-0 ${currentDraft.length < 450 ? "text-gray-500" : "text-red-500"}`}
       >
-        {message.length} / 500
+        {currentDraft.length} / 500
       </span>
 
       <button
         type="submit"
         className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={disabled || !message.trim()}
+        disabled={disabled || !currentDraft.trim()}
       >
         Send
       </button>
