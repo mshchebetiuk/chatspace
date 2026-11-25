@@ -1,7 +1,96 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from "react";
 import type { FormEvent } from "react";
+
+const DRAFT_STORAGE_KEY = "chatspace:drafts:guest";
+const EMPTY_DRAFTS: Record<string, string> = {};
+
+let cachedDrafts: Record<string, string> = EMPTY_DRAFTS;
+let isDraftLoaded: boolean = false;
+const listeners = new Set<() => void>();
+
+function getServerSnapshot(): Record<string, string> {
+  return EMPTY_DRAFTS;
+}
+
+function loadDrafts(): Record<string, string> {
+  try {
+    const savedDrafts = localStorage.getItem(DRAFT_STORAGE_KEY);
+
+    if (savedDrafts === null) return {};
+
+    const parsedDrafts: unknown = JSON.parse(savedDrafts);
+
+    if (
+      typeof parsedDrafts !== "object" ||
+      parsedDrafts === null ||
+      Array.isArray(parsedDrafts)
+    ) {
+      return {};
+    }
+
+    const isValidDrafts = Object.values(parsedDrafts).every(
+      (value) => typeof value === "string",
+    );
+
+    if (!isValidDrafts) return {};
+
+    return parsedDrafts as Record<string, string>;
+  } catch (error: unknown) {
+    console.error("Failed to load drafts:", error);
+    return {};
+  }
+}
+
+function saveDrafts(drafts: Record<string, string>): void {
+  try {
+    const serializedDrafts = JSON.stringify(drafts);
+    localStorage.setItem(DRAFT_STORAGE_KEY, serializedDrafts);
+  } catch (error: unknown) {
+    console.error("Failed to save drafts:", error);
+  }
+}
+
+function getSnapshot(): Record<string, string> {
+  if (!isDraftLoaded) {
+    cachedDrafts = loadDrafts();
+    isDraftLoaded = true;
+  }
+
+  return cachedDrafts;
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function notifyListeners(): void {
+  listeners.forEach((listener) => {
+    listener();
+  });
+}
+
+function updateDraft(conversationId: string, value: string): void {
+  const currentDrafts = getSnapshot();
+
+  cachedDrafts = {
+    ...currentDrafts,
+    [conversationId]: value,
+  };
+
+  saveDrafts(cachedDrafts);
+  notifyListeners();
+}
 
 export type MessageInputProps = {
   placeholder: string;
@@ -16,7 +105,11 @@ export function MessageInput({
   disabled,
   conversationId,
 }: MessageInputProps) {
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const drafts = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentDraft =
@@ -24,11 +117,7 @@ export function MessageInput({
 
   const updateCurrentDraft = (value: string) => {
     if (conversationId === null) return;
-
-    setDrafts((prev) => ({
-      ...prev,
-      [conversationId]: value,
-    }));
+    updateDraft(conversationId, value);
   };
 
   useEffect(() => {
