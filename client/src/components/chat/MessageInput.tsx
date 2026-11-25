@@ -52,8 +52,11 @@ export function MessageInput({
   return (
     <form className="flex gap-2 p-4 border-t items-end" onSubmit={handleSubmit}>
       <textarea
-        className="flex-1 border rounded-lg px-3 py-2 max-h-40 overflow-y-auto resize-none"
+        className="flex-1 border rounded-lg px-3 py-2 max-h-40 overflow-y-auto resize-none focus-visible:outline-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2"
         placeholder={placeholder}
+        name="message"
+        aria-label="Message"
+        aria-describedby="message-counter"
         value={message}
         ref={textareaRef}
         onChange={(e) => setMessage(e.target.value)}
@@ -72,6 +75,7 @@ export function MessageInput({
         }}
       />
       <span
+        id="message-counter"
         className={`text-xs pb-3 shrink-0 ${message.length < 450 ? "text-gray-500" : "text-red-500"}`}
       >
         {message.length} / 500
